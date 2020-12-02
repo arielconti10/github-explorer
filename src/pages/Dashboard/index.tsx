@@ -1,65 +1,90 @@
-import React from 'react'
-import { FiChevronRight } from 'react-icons/fi'
+import React, { useState, useEffect, FormEvent } from 'react';
+import { FiChevronRight } from 'react-icons/fi';
+import { Link } from 'react-router-dom';
 
+import api from '../../services/api';
 import logoImg from '../../assets/logo.svg';
 
-import { Title, Form, Repositories } from './styles';
+import { Title, Form, Repositories, Error } from './styles';
+import Repository from '../Repository';
+
+interface Repository{
+  full_name: string;
+  owner: {
+    login: string;
+    avatar_url: string;
+  }
+  description: string;
+}
 
 const Dashboard: React.FC = () => {
+  const [repositories, setRepositories] = useState<Repository[]>(() => {
+    const storedRepositories = localStorage.getItem('@GithubExplorer:repositories');
+
+    if (storedRepositories) {
+      return JSON.parse(storedRepositories)
+    }
+    return [];
+  });
+  const [newRepo, setNewRepo] = useState<string>('');
+  const [inputError, setInputError] = useState<string>('');
+
+  useEffect(() => {
+    localStorage.setItem('@GithubExplorer:repositories', JSON.stringify(repositories))
+  }, [repositories])
+
+  const handleAddNewRepository = async (event: FormEvent<HTMLFormElement>) : Promise<void> => {
+    event.preventDefault();
+
+    if (!newRepo) {
+      setInputError('Digite o autor/nome do repositorio');
+      return;
+    }
+
+    try {
+      const response = await api.get<Repository>(`repos/${newRepo}`);
+      const repository = response.data;
+
+      setRepositories([...repositories, repository]);
+
+      setInputError('');
+      setNewRepo('');
+
+    } catch (err) {
+      setInputError('Repositorio nao encontrado');
+    }
+
+  }
+
   return (
     <>
       <img src={logoImg} alt="Github explorer" />
       <Title>Explore repositorios no Github</Title>
 
-      <Form action="">
-        <input type="text" placeholder="Digite o nome do repositorio" />
+      <Form hasError={!!inputError} onSubmit={handleAddNewRepository}>
+        <input
+          type="text"
+          placeholder="Digite o nome do repositorio"
+          value={newRepo}
+          onChange={e => setNewRepo(e.target.value)}
+        />
+
         <button type="submit">Pesquisar</button>
       </Form>
 
+      {inputError && <Error>{inputError} </Error>}
+
       <Repositories>
-        <a href="teste">
-          <img src="https://avatars1.githubusercontent.com/u/17475188?s=460&u=28af8693c6164d25311df6e2d0f53439d135cdc4&v=4" alt="Ariel Conti" />
-
-          <div>
-            <strong>RocketSeat/unform</strong>
-            <p>Easy peasy highly scalable ReactJS & React Native forms! 🚀</p>
-          </div>
-
-          <FiChevronRight size={20} />
-        </a>
-
-        <a href="teste">
-          <img src="https://avatars1.githubusercontent.com/u/17475188?s=460&u=28af8693c6164d25311df6e2d0f53439d135cdc4&v=4" alt="Ariel Conti" />
-
-          <div>
-            <strong>RocketSeat/unform</strong>
-            <p>Easy peasy highly scalable ReactJS & React Native forms! 🚀</p>
-          </div>
-
-          <FiChevronRight size={20} />
-        </a>
-
-        <a href="teste">
-          <img src="https://avatars1.githubusercontent.com/u/17475188?s=460&u=28af8693c6164d25311df6e2d0f53439d135cdc4&v=4" alt="Ariel Conti" />
-
-          <div>
-            <strong>RocketSeat/unform</strong>
-            <p>Easy peasy highly scalable ReactJS & React Native forms! 🚀</p>
-          </div>
-
-          <FiChevronRight size={20} />
-        </a>
-
-        <a href="teste">
-          <img src="https://avatars1.githubusercontent.com/u/17475188?s=460&u=28af8693c6164d25311df6e2d0f53439d135cdc4&v=4" alt="Ariel Conti" />
-
-          <div>
-            <strong>RocketSeat/unform</strong>
-            <p>Easy peasy highly scalable ReactJS & React Native forms! 🚀</p>
-          </div>
-
-          <FiChevronRight size={20} />
-        </a>
+        {repositories.map(repository => (
+          <Link to={`/repository/${repository.full_name}`} key={repository.full_name}>
+            <img src={repository.owner.avatar_url} alt={repository.owner.login} />
+            <div>
+              <strong>{repository.full_name}</strong>
+              <p>{repository.description}</p>
+            </div>
+            <FiChevronRight size={20} />
+          </Link>
+        ))}
       </Repositories>
     </>
   );
